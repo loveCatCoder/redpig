@@ -1,15 +1,15 @@
 // Copyright 2010, Shuo Chen.  All rights reserved.
-// http://code.google.com/p/muduo/
+// http://code.google.com/p/
 //
 // Use of this source code is governed by a BSD-style license
 // that can be found in the License file.
 
 // Author: Shuo Chen (chenshuo at chenshuo dot com)
 
-#include <muduo/net/poller/EPollPoller.h>
+#include <net/poller/EPollPoller.h>
 
-#include <muduo/base/Logging.h>
-#include <muduo/net/Channel.h>
+#include <base/Logging.h>
+#include <net/Channel.h>
 
 #include <assert.h>
 #include <errno.h>

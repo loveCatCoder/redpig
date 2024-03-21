@@ -1,5 +1,5 @@
 // Copyright 2010, Shuo Chen.  All rights reserved.
-// http://code.google.com/p/muduo/
+// http://code.google.com/p/
 //
 // Use of this source code is governed by a BSD-style license
 // that can be found in the License file.
@@ -9,13 +9,14 @@
 #include <net/EventLoop.h>
 
 
-
+#include <base/Logging.h>
 #include <net/Channel.h>
 #include <net/Poller.h>
 #include <net/SocketsOps.h>
 #include <net/TimerQueue.h>
 
 #include <algorithm>
+#include <thread>
 
 #include <signal.h>
 #include <sys/eventfd.h>
@@ -26,7 +27,7 @@ using namespace muduo::net;
 
 namespace
 {
-    ThreadLocal EventLoop *t_loopInThisThread = 0;
+    thread_local EventLoop *t_loopInThisThread = 0;
 
     const int kPollTimeMs = 10000;
 
@@ -35,7 +36,7 @@ namespace
         int evtfd = ::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
         if (evtfd < 0)
         {
-            LOG_SYSERR << "Failed in eventfd";
+            LOG_ERR("Failed in eventfd");
             abort();
         }
         return evtfd;
@@ -74,11 +75,11 @@ EventLoop::EventLoop()
       wakeupChannel_(new Channel(this, wakeupFd_)),
       currentActiveChannel_(NULL)
 {
-    LOG_DEBUG << "EventLoop created " << this << " in thread " << threadId_;
+
+    LOG_DBG("EventLoop created :%p , in thread %d",this,threadId_);
     if (t_loopInThisThread)
     {
-        LOG_FATAL << "Another EventLoop " << t_loopInThisThread
-                  << " exists in this thread " << threadId_;
+        LOG_PRI("Another EventLoop %p , exists in this thread:%d",t_loopInThisThread,threadId_);
     }
     else
     {
@@ -92,8 +93,8 @@ EventLoop::EventLoop()
 
 EventLoop::~EventLoop()
 {
-    LOG_DEBUG << "EventLoop " << this << " of thread " << threadId_
-              << " destructs in thread " << CurrentThread::tid();
+
+    LOG_DBG("EventLoop: %p ,of thread: %d,destructs in thread:%d",this,threadId_,CurrentThread::tid());
     wakeupChannel_->disableAll();
     wakeupChannel_->remove();
     ::close(wakeupFd_);
@@ -106,17 +107,16 @@ void EventLoop::loop()
     assertInLoopThread();
     looping_ = true;
     quit_ = false; // FIXME: what if someone calls quit() before loop() ?
-    LOG_TRACE << "EventLoop " << this << " start looping";
+    LOG_PRI("EventLoop  %p  start looping",this);
 
     while (!quit_)
     {
         activeChannels_.clear();
         pollReturnTime_ = poller_->poll(kPollTimeMs, &activeChannels_);
         ++iteration_;
-        if (Logger::logLevel() <= Logger::TRACE)
-        {
-            printActiveChannels();
-        }
+
+        printActiveChannels();
+        
         // TODO sort channel by priority
         eventHandling_ = true;
         for (Channel *channel : activeChannels_)
@@ -128,8 +128,7 @@ void EventLoop::loop()
         eventHandling_ = false;
         doPendingFunctors();
     }
-
-    LOG_TRACE << "EventLoop " << this << " stop looping";
+    LOG_PRI("EventLoop %p stop looping",this);
     looping_ = false;
 }
 
@@ -160,7 +159,7 @@ void EventLoop::runInLoop(Functor cb)
 void EventLoop::queueInLoop(Functor cb)
 {
     {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(m_mutex);
         pendingFunctors_.push_back(std::move(cb));
     }
 
@@ -170,9 +169,9 @@ void EventLoop::queueInLoop(Functor cb)
     }
 }
 
-size_t EventLoop::queueSize() const
+size_t EventLoop::queueSize() 
 {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::lock_guard<std::mutex> lock(m_mutex);
     return pendingFunctors_.size();
 }
 
@@ -226,9 +225,7 @@ bool EventLoop::hasChannel(Channel *channel)
 
 void EventLoop::abortNotInLoopThread()
 {
-    LOG_FATAL << "EventLoop::abortNotInLoopThread - EventLoop " << this
-              << " was created in threadId_ = " << threadId_
-              << ", current thread id = " << CurrentThread::tid();
+    LOG_WARN("EventLoop::abortNotInLoopThread - EventLoop %p ,was created in threadId_ = %d,current thread id = %d",this,threadId_,CurrentThread::tid());
 }
 
 void EventLoop::wakeup()
@@ -237,7 +234,7 @@ void EventLoop::wakeup()
     ssize_t n = sockets::write(wakeupFd_, &one, sizeof one);
     if (n != sizeof one)
     {
-        LOG_ERROR << "EventLoop::wakeup() writes " << n << " bytes instead of 8";
+        LOG_ERR("EventLoop::wakeup() writes %d bytes instead of 8",n);
     }
 }
 
@@ -247,7 +244,7 @@ void EventLoop::handleRead()
     ssize_t n = sockets::read(wakeupFd_, &one, sizeof one);
     if (n != sizeof one)
     {
-        LOG_ERROR << "EventLoop::handleRead() reads " << n << " bytes instead of 8";
+        LOG_ERR("EventLoop::handleRead() reads  %d bytes instead of 8",n);
     }
 }
 
@@ -257,7 +254,7 @@ void EventLoop::doPendingFunctors()
     callingPendingFunctors_ = true;
 
     {
-        std::lock_guard<std::mutex> lock(mutex_);
+        std::lock_guard<std::mutex> lock(m_mutex);
         functors.swap(pendingFunctors_);
     }
 
@@ -272,6 +269,6 @@ void EventLoop::printActiveChannels() const
 {
     for (const Channel *channel : activeChannels_)
     {
-        LOG_TRACE << "{" << channel->reventsToString() << "} ";
+        LOG_PRI("{ %s }",channel->reventsToString().c_str());
     }
 }

@@ -6,8 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 file(GLOB_RECURSE SRC_DIR_LIST 
         "main.cpp" 
-        "net/*.cpp" 
-        "base/*.cpp"
+        "net/*.cpp"
+        "net/poller/*.cpp"
+        "base/*.cpp"       
+
 )
 
 # add the executable

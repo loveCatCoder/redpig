@@ -1,5 +1,5 @@
 // Copyright 2010, Shuo Chen.  All rights reserved.
-// http://code.google.com/p/muduo/
+// http://code.google.com/p/
 //
 // Use of this source code is governed by a BSD-style license
 // that can be found in the License file.
@@ -38,7 +38,7 @@ inline T* get_pointer(const std::unique_ptr<T>& ptr)
 }
 
 // Adapted from google-protobuf stubs/common.h
-// see License in muduo/base/Types.h
+// see License in base/Types.h
 template<typename To, typename From>
 inline ::std::shared_ptr<To> down_pointer_cast(const ::std::shared_ptr<From>& f) {
   if (false)
