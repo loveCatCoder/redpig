@@ -17,6 +17,8 @@ add_executable(${PROJECT_NAME} ${SRC_DIR_LIST})
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
+target_link_libraries(${PROJECT_NAME} pthread)
+
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
 include(CPack)
