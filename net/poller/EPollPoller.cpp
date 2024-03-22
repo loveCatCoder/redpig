@@ -43,7 +43,8 @@ EPollPoller::EPollPoller(EventLoop* loop)
 {
   if (epollfd_ < 0)
   {
-    LOG_SYSFATAL << "EPollPoller::EPollPoller";
+    LOG_DBG("EPollPoller::EPollPoller") ;
+
   }
 }
 
@@ -54,7 +55,7 @@ EPollPoller::~EPollPoller()
 
 Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
 {
-  LOG_TRACE << "fd total count " << channels_.size();
+  LOG_DBG("fd total count:%d ",channels_.size());
   int numEvents = ::epoll_wait(epollfd_,
                                &*events_.begin(),
                                static_cast<int>(events_.size()),
@@ -63,7 +64,7 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
   Timestamp now(Timestamp::now());
   if (numEvents > 0)
   {
-    LOG_TRACE << numEvents << " events happened";
+    LOG_DBG("%d  events happened",numEvents);
     fillActiveChannels(numEvents, activeChannels);
     if (implicit_cast<size_t>(numEvents) == events_.size())
     {
@@ -72,7 +73,7 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
   }
   else if (numEvents == 0)
   {
-    LOG_TRACE << "nothing happened";
+    LOG_DBG("nothing happened");
   }
   else
   {
@@ -80,7 +81,7 @@ Timestamp EPollPoller::poll(int timeoutMs, ChannelList* activeChannels)
     if (savedErrno != EINTR)
     {
       errno = savedErrno;
-      LOG_SYSERR << "EPollPoller::poll()";
+      LOG_DBG("EPollPoller::poll()");
     }
   }
   return now;
@@ -108,8 +109,7 @@ void EPollPoller::updateChannel(Channel* channel)
 {
   Poller::assertInLoopThread();
   const int index = channel->index();
-  LOG_TRACE << "fd = " << channel->fd()
-    << " events = " << channel->events() << " index = " << index;
+  LOG_DBG("fd = %d ,events =%d,index =%d",channel->fd(),channel->events(),index);
   if (index == kNew || index == kDeleted)
   {
     // a new one, add with EPOLL_CTL_ADD
@@ -152,7 +152,7 @@ void EPollPoller::removeChannel(Channel* channel)
 {
   Poller::assertInLoopThread();
   int fd = channel->fd();
-  LOG_TRACE << "fd = " << fd;
+  LOG_DBG("fd = %d",fd);
   assert(channels_.find(fd) != channels_.end());
   assert(channels_[fd] == channel);
   assert(channel->isNoneEvent());
@@ -176,17 +176,16 @@ void EPollPoller::update(int operation, Channel* channel)
   event.events = channel->events();
   event.data.ptr = channel;
   int fd = channel->fd();
-  LOG_TRACE << "epoll_ctl op = " << operationToString(operation)
-    << " fd = " << fd << " event = { " << channel->eventsToString() << " }";
+  LOG_DBG("epoll_ctl op =  %s ,fd = %d ,event = %s",operationToString(operation),fd,channel->eventsToString().c_str());
   if (::epoll_ctl(epollfd_, operation, fd, &event) < 0)
   {
     if (operation == EPOLL_CTL_DEL)
     {
-      LOG_SYSERR << "epoll_ctl op =" << operationToString(operation) << " fd =" << fd;
+      LOG_DBG("epoll_ctl op = %s ,fd = %d",operationToString(operation),fd);
     }
     else
     {
-      LOG_SYSFATAL << "epoll_ctl op =" << operationToString(operation) << " fd =" << fd;
+      LOG_DBG("epoll_ctl op = %s ,fd = %d",operationToString(operation),fd);
     }
   }
 }
